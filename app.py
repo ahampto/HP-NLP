@@ -70,13 +70,28 @@ def run_who_am_i_game(df):
 
     col1, col2 = st.columns([2, 1])
     with col1:
-        fig_radar = go.Figure(data=go.Scatterpolar(r=radar_values, theta=labels, fill='toself', line_color="#FFFFFF"))
-        fig_radar.update_layout(
-            title="Statistical Shadow Profile",
-            polar=dict(bgcolor="#121212", radialaxis=dict(visible=False)), 
-            paper_bgcolor="rgba(0,0,0,0)", font=dict(color="white")
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
+            # 1. Dynamically get the color based on the target character's cluster
+            target_cluster = int(target[target_cluster_col])
+            cluster_color = COLOR_PALETTE[target_cluster % len(COLOR_PALETTE)]
+            
+            # 2. Build the radar chart using that cluster color
+            fig_radar = go.Figure(data=go.Scatterpolar(
+                r=radar_values, 
+                theta=labels, 
+                fill='toself', 
+                line_color=cluster_color
+            ))
+            
+            # 3. Update layout to be theme-aware (no hardcoded white/black)
+            fig_radar.update_layout(
+                title=f"Statistical Shadow Profile",
+                polar=dict(
+                    radialaxis=dict(visible=True, gridcolor="gray", showticklabels=False),
+                    angularaxis=dict(gridcolor="gray")
+                ),
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_radar, use_container_width=True)
 
     with col2:
         st.write("### Cast Your Guess")
@@ -271,7 +286,7 @@ if df is not None:
             labels = [t.replace('_scaled', '') for t in traits]
             radar_values = [(char_row[t] - df[t].min()) / (df[t].max() - df[t].min()) for t in traits]
             fig_radar = go.Figure(data=go.Scatterpolar(r=radar_values, theta=labels, fill='toself', line_color=ACCENT_COLOR))
-            fig_radar.update_layout(polar=dict(bgcolor="#121212"), paper_bgcolor="rgba(0,0,0,0)", font=dict(color="white"))
+            fig_radar.update_layout(paper_bgcolor="rgba(0,0,0,0)") # This removes the hardcoded dark colors)
             st.plotly_chart(fig_radar, use_container_width=True)
 
     with tabs[1]:

@@ -10,6 +10,7 @@ import re
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import pdist
 import random
+import base64
 import numpy as np # Required for Euclidean calculations
 
 # --- 1. CONFIG & SETTINGS ---
@@ -18,6 +19,13 @@ st.set_page_config(page_title="HP Personality Analytics", layout="wide", page_ic
 V1, V2, V3 = "88.01%", "7.15%", "2.41%"
 AXIS_LABEL_1, AXIS_LABEL_2, AXIS_LABEL_3 = f"PC1 ({V1})", f"PC2 ({V2})", f"PC3 ({V3})"
 COLOR_PALETTE = px.colors.qualitative.Prism
+
+def display_pdf(file_path):
+    with open(file_path, "rb") as f:
+        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)
+
 
 # --- 2. THE ULTIMATE CLEANER ---
 def clean_text(text):
@@ -244,7 +252,7 @@ if df is not None:
     st.markdown(f"<style>h1, h2, .stSubheader {{ color: {ACCENT_COLOR} !important; }}</style>", unsafe_allow_html=True)
 
     # --- 9. TABS LAYOUT (6 TABS) ---
-    tabs = st.tabs(["👤 Profile", "🌌 Galaxy", "🪄 Quiz", "🧩 Matchmaker", "🕵️‍♂️ Who am I?", "🪞 Mirror"])
+    tabs = st.tabs(["👤 Profile", "🌌 Galaxy", "🪄 Quiz", "🧩 Matchmaker", "🕵️‍♂️ Who am I?", "🪞 Mirror","Technical Deep Dive" ])
 
     with tabs[0]:
         st.title("Harry Potter: Personality Archetypes")
@@ -285,3 +293,43 @@ if df is not None:
     with tabs[3]: run_matching_game(df)
     with tabs[4]: run_who_am_i_game(df)
     with tabs[5]: run_character_mirror(df, descriptions, ACCENT_COLOR)
+    with tabs[6]:
+        st.header("Technical Deep Dive & Methodology")
+        
+        # 1. Explanation of the Presentation
+        st.write("""
+        The following 90-page presentation covers the end-to-end data science lifecycle of this project.
+        It includes deep dives into the NLP Transformer architecture, PCA variance analysis, 
+        and the mathematical justification for using Cosine vs. Euclidean distance metrics.
+        """)
+
+        # 2. Create the GitHub Link
+        # REPLACE 'YOUR_USERNAME' and 'YOUR_REPO_NAME' with your actual GitHub details
+        github_pdf_url = "https://github.com/ahampto/HP-NLP/blob/main/hp_personality_presentation.pdf"
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.link_button(
+                label="🚀 Open Full Presentation (GitHub Viewer)",
+                url=github_pdf_url,
+                use_container_width=True,
+                type="primary" # Makes the button blue/stand out
+            )
+            
+        with col2:
+            # Keep the local download button as a backup
+            try:
+                with open("hp_personality_presentation.pdf", "rb") as f:
+                    st.download_button(
+                        label="📥 Download PDF to Device",
+                        data=f,
+                        file_name="HP_Personality_Deep_Dive.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+            except FileNotFoundError:
+                st.warning("Download file only available after deployment.")
+
+        st.divider()
+        st.info("💡 Tip: The GitHub viewer allows you to scroll through all 90 pages with full search and zoom functionality.")

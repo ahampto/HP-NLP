@@ -10,8 +10,7 @@ import re
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import pdist
 import random
-import base64
-import numpy as np # Required for Euclidean calculations
+import numpy as np 
 
 # --- 1. CONFIG & SETTINGS ---
 st.set_page_config(page_title="HP Personality Analytics", layout="wide", page_icon="🪄")
@@ -25,7 +24,6 @@ def display_pdf(file_path):
         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
     pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
-
 
 # --- 2. THE ULTIMATE CLEANER ---
 def clean_text(text):
@@ -48,13 +46,11 @@ def add_bg_audio(audio_file):
             st.markdown(md, unsafe_allow_html=True)
 
 # --- 4. GAME: WHO AM I? (THE SORTING HAT) ---
-def run_who_am_i_game(df):
+def run_who_am_i_game(df, target_cluster_col):
     st.header("🕵️‍♂️ The Sorting Hat: Who am I?")
     st.write("A random character has been chosen. Identify them by their statistical 'Shadow Profile'.")
 
-    # Initialize Randomized Game State
     if 'who_target' not in st.session_state:
-        # Pick 4 random characters (1 target + 3 distractors)
         sample = df.sample(n=4)
         st.session_state.who_target = sample.iloc[0]
         options = sample['Character'].tolist()
@@ -65,24 +61,23 @@ def run_who_am_i_game(df):
     target = st.session_state.who_target
     traits = ['Openness_scaled', 'Conscientiousness_scaled', 'Extraversion_scaled', 'Agreeableness_scaled', 'Neuroticism_scaled']
     labels = [t.replace('_scaled', '') for t in traits]
-    # Normalize for radar visualization
     radar_values = [(target[t] - df[t].min()) / (df[t].max() - df[t].min()) for t in traits]
 
     col1, col2 = st.columns([2, 1])
     with col1:
-            # 1. Dynamically get the color based on the target character's cluster
+            # Dynamically get cluster color and fill
             target_cluster = int(target[target_cluster_col])
             cluster_color = COLOR_PALETTE[target_cluster % len(COLOR_PALETTE)]
+            fill_color = cluster_color.replace('rgb', 'rgba').replace(')', ', 0.3)')
             
-            # 2. Build the radar chart using that cluster color
             fig_radar = go.Figure(data=go.Scatterpolar(
                 r=radar_values, 
                 theta=labels, 
                 fill='toself', 
-                line_color=cluster_color
+                line_color=cluster_color,
+                fillcolor=fill_color
             ))
             
-            # 3. Update layout to be theme-aware (no hardcoded white/black)
             fig_radar.update_layout(
                 title=f"Statistical Shadow Profile",
                 polar=dict(
@@ -115,17 +110,9 @@ def run_who_am_i_game(df):
 def run_character_mirror(df, descriptions, accent_color):
     st.header("🪞 The Character Mirror")
     
-    # Mathematical explanation expander
     with st.expander("🔬 The Math: Why Euclidean Distance?"):
         st.markdown("""
         Use **Euclidean Distance** to find the match because it respects **Intensity**.
-        
-        **Example:**
-        Imagine you are moderately social (1.0) and moderately kind (0.5).
-        * **Persona A:** Is 3.0 social and 1.5 kind. They have your 'vibe', but they are far more extreme.
-        * **Persona B:** Is 1.1 social and 0.6 kind. They are nearly identical to you.
-        
-        The Mirror uses Euclidean math to ensure you match with **Persona B** (your equal) rather than just an extreme version of your personality shape.
         """)
 
     traits = ['Openness_scaled', 'Conscientiousness_scaled', 'Extraversion_scaled', 'Agreeableness_scaled', 'Neuroticism_scaled']
@@ -133,7 +120,6 @@ def run_character_mirror(df, descriptions, accent_color):
     user_scores = []
 
     st.subheader("Rate Yourself (-3 to +3)")
-    st.info("0.0 represents the statistical average of the Wizarding World.")
     cols = st.columns(5)
     for i, trait in enumerate(traits):
         with cols[i]:
@@ -143,7 +129,6 @@ def run_character_mirror(df, descriptions, accent_color):
     if st.button("Find My Statistical Twins"):
         user_vec = np.array(user_scores)
         char_vecs = df[traits].values
-        # Euclidean distance calculation
         distances = np.linalg.norm(char_vecs - user_vec, axis=1) 
         
         df_mirror = df.copy()
@@ -153,18 +138,20 @@ def run_character_mirror(df, descriptions, accent_color):
         st.divider()
         st.subheader("🔮 Your Top Match Comparison")
         
-        # Radar Comparison (User vs Top Match)
         match1 = top_3.iloc[0]
         user_norm = [(v - (-3)) / 6 for v in user_scores]
         twin_norm = [(match1[t] - (-3)) / 6 for t in traits]
 
         fig_comp = go.Figure()
-        fig_comp.add_trace(go.Scatterpolar(r=user_norm, theta=labels, fill='toself', name='You', line_color='#FFFFFF'))
+        fig_comp.add_trace(go.Scatterpolar(r=user_norm, theta=labels, fill='toself', name='You'))
         fig_comp.add_trace(go.Scatterpolar(r=twin_norm, theta=labels, fill='toself', name=match1['Character'], line_color=accent_color))
-        fig_comp.update_layout(polar=dict(bgcolor="#121212", radialaxis=dict(visible=False)), paper_bgcolor="rgba(0,0,0,0)", font=dict(color="white"))
+        # Removed hardcoded font/bgcolor for Chrome compatibility
+        fig_comp.update_layout(
+            polar=dict(radialaxis=dict(visible=True, gridcolor="gray")), 
+            paper_bgcolor="rgba(0,0,0,0)"
+        )
         st.plotly_chart(fig_comp, use_container_width=True)
 
-        # Result Cards
         st.write("### Your Top 3 Archetypes")
         m_cols = st.columns(3)
         for i in range(3):
@@ -266,7 +253,7 @@ if df is not None:
 
     st.markdown(f"<style>h1, h2, .stSubheader {{ color: {ACCENT_COLOR} !important; }}</style>", unsafe_allow_html=True)
 
-    # --- 9. TABS LAYOUT (6 TABS) ---
+    # --- 9. TABS LAYOUT ---
     tabs = st.tabs(["👤 Profile", "🌌 Galaxy", "🪄 Quiz", "🧩 Matchmaker", "🕵️‍♂️ Who am I?", "🪞 Mirror","Technical Deep Dive" ])
 
     with tabs[0]:
@@ -285,8 +272,13 @@ if df is not None:
             traits = ['Openness_scaled', 'Conscientiousness_scaled', 'Extraversion_scaled', 'Agreeableness_scaled', 'Neuroticism_scaled']
             labels = [t.replace('_scaled', '') for t in traits]
             radar_values = [(char_row[t] - df[t].min()) / (df[t].max() - df[t].min()) for t in traits]
-            fig_radar = go.Figure(data=go.Scatterpolar(r=radar_values, theta=labels, fill='toself', line_color=ACCENT_COLOR))
-            fig_radar.update_layout(paper_bgcolor="rgba(0,0,0,0)") # This removes the hardcoded dark colors)
+            fill_color = ACCENT_COLOR.replace('rgb', 'rgba').replace(')', ', 0.3)')
+            
+            fig_radar = go.Figure(data=go.Scatterpolar(r=radar_values, theta=labels, fill='toself', line_color=ACCENT_COLOR, fillcolor=fill_color))
+            fig_radar.update_layout(
+                polar=dict(radialaxis=dict(visible=True, gridcolor="gray", showticklabels=False), angularaxis=dict(gridcolor="gray")),
+                paper_bgcolor="rgba(0,0,0,0)"
+            ) 
             st.plotly_chart(fig_radar, use_container_width=True)
 
     with tabs[1]:
@@ -294,57 +286,35 @@ if df is not None:
         df_plot = df.copy()
         df_plot[target_cluster_col] = df_plot[target_cluster_col].astype(str)
         fig_pca = px.scatter_3d(df_plot, x='pc1', y='pc2', z='pc3', color=target_cluster_col, text='Character', hover_name='Character', height=800, color_discrete_sequence=COLOR_PALETTE)
-        fig_pca.update_layout(paper_bgcolor="rgba(0,0,0,0)", scene=dict(bgcolor="#121212", xaxis_title=AXIS_LABEL_1, yaxis_title=AXIS_LABEL_2, zaxis_title=AXIS_LABEL_3))
+        # Removed hardcoded dark background for 3D plot
+        fig_pca.update_layout(paper_bgcolor="rgba(0,0,0,0)", scene=dict(xaxis_title=AXIS_LABEL_1, yaxis_title=AXIS_LABEL_2, zaxis_title=AXIS_LABEL_3))
         st.plotly_chart(fig_pca, use_container_width=True)
         st.divider()
         st.header(f"Hierarchical Similarity Tree")
         features = df[['pc1', 'pc2', 'pc3']]
         Z = linkage(features, method='complete', metric='cosine')
         fig_dendro = ff.create_dendrogram(features, orientation='bottom', labels=df['Character'].values)
-        fig_dendro.update_layout(width=1200, height=450, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="white", size=10))
+        # Removed hardcoded font colors for theme compatibility
+        fig_dendro.update_layout(width=1200, height=450, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_dendro, use_container_width=True)
 
     with tabs[2]: run_personality_quiz(df)
     with tabs[3]: run_matching_game(df)
-    with tabs[4]: run_who_am_i_game(df)
+    with tabs[4]: run_who_am_i_game(df, target_cluster_col)
     with tabs[5]: run_character_mirror(df, descriptions, ACCENT_COLOR)
     with tabs[6]:
         st.header("Technical Deep Dive & Methodology")
-        
-        # 1. Explanation of the Presentation
-        st.write("""
-        The following 90-page presentation covers the end-to-end data science lifecycle of this project.
-        It includes deep dives into the NLP Transformer architecture, PCA variance analysis, 
-        and the mathematical justification for using Cosine vs. Euclidean distance metrics.
-        """)
+        st.write("Explore the methodology behind the NLP extraction, PCA decorrelation, and clustering.")
 
-        # 2. Create the GitHub Link
-        # REPLACE 'YOUR_USERNAME' and 'YOUR_REPO_NAME' with your actual GitHub details
         github_pdf_url = "https://github.com/ahampto/HP-NLP/blob/main/hp_personality_presentation.pdf"
-        
         col1, col2 = st.columns([1, 1])
-        
         with col1:
-            st.link_button(
-                label="🚀 Open Full Presentation (GitHub Viewer)",
-                url=github_pdf_url,
-                use_container_width=True,
-                type="primary" # Makes the button blue/stand out
-            )
-            
+            st.link_button(label="🚀 Open Full Presentation (GitHub Viewer)", url=github_pdf_url, use_container_width=True, type="primary")
         with col2:
-            # Keep the local download button as a backup
             try:
                 with open("hp_personality_presentation.pdf", "rb") as f:
-                    st.download_button(
-                        label="📥 Download PDF to Device",
-                        data=f,
-                        file_name="HP_Personality_Deep_Dive.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
+                    st.download_button(label="📥 Download PDF to Device", data=f, file_name="HP_Personality_Deep_Dive.pdf", mime="application/pdf", use_container_width=True)
             except FileNotFoundError:
                 st.warning("Download file only available after deployment.")
-
         st.divider()
         st.info("💡 Tip: The GitHub viewer allows you to scroll through all 90 pages with full search and zoom functionality.")

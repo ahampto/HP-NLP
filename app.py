@@ -242,6 +242,9 @@ df, descriptions = load_data()
 if df is not None:
     # --- 8. SIDEBAR CONTROLS ---
     st.sidebar.title("🧪 Statistical Controls")
+    st.sidebar.info("""
+    **✨ Display Note:** This app is optimized for **Dark Mode**. If chart labels are invisible in Chrome Light Mode, please switch to Dark Mode in the top-right menu (Settings > Theme) or use Microsoft Edge.
+    """)
     k_val = st.sidebar.slider("Number of Clusters (k):", 2, 10, 3)
     target_cluster_col = 'Cluster' if k_val == 3 else f'Cluster_k{k_val}'
     selected_char = st.sidebar.selectbox("Choose a Persona:", sorted(df['Character'].unique()))
